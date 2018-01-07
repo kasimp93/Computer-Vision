@@ -1,0 +1,220 @@
+
+<html>
+<head>
+<title> CS585 Homework 3: Muhammad Kasim Patel </title>
+<style>
+<!--
+body{
+font-family: 'Trebuchet MS', Verdana;
+}
+p{
+font-family: 'Trebuchet MS', Times;
+margin: 10px 10px 15px 20px;
+}
+h3{
+margin: 5px;
+}
+h2{
+margin: 10px;
+}
+h1{
+margin: 10px 0px 0px 20px;
+}
+div.main-body{
+align:center;
+margin: 30px;
+}
+hr{
+margin:20px 0px 20px 0px;
+}
+-->
+</style>
+</head>
+
+<body>
+<center>
+<a href="http://www.bu.edu"><img border="0" src="http://www.cs.bu.edu/fac/betke/images/bu-logo.gif"
+width="119" height="120"></a>
+</center>
+
+<h1>Programming Assignment 3</h1>
+<p> 
+ CS 585 HW 3 <br>
+ Muhammed Kasim Patel <br>
+ Shantanu Bobhate (Teammate)<br>
+ Muhammed Zuhayr Raghib (Teammate)<br>
+ Date:10/7/17  <br>
+</p>
+
+<div class="main-body">
+<hr>
+<h2> Problem Definition </h2>
+<p>
+The goal of this assignment was to design and implement algorithms that delineate objects in video images and analyze their shapes.
+</p>
+
+<hr>
+<h2> Method and Implementation </h2>
+<p>Give a concise description of the implemented method. For example, you might
+  describe the motivation of your idea, the algorithmic steps of your methods, or
+  the mathematical formulation of your method. 
+</p>
+
+<h3>Stack-Based Connected Component Labelling</h3>
+<p>
+Taking the given suggestion into consideration we began by working the algorithm through an example like in class. Soon it was quite clear how the stack-based implementation worked (since it was quite similar to the DFS algorithm). Validating each pixels neighbours was confusing at first but we managed to create a generic helper function to validate each neighbour and push it onto the stack. We had initialized an array of colors that we used to assign to each component found. We used some morphological operations specific to every data image and also used the components area to ignore small objects.
+</p>
+<p>
+In the process of designing this algorithm we also realized that it might be easier to merge the implementations of the shape analysis functions with this algorithm since properties like the area could be implemented simultaneously and other properties were specific to components and so it would help to have the component definition handy. We also created a struct object called <b>ConnectedComponent</b> which was used to contain information of every component found. A vector of ConnectedComponent data types held all of the components found.
+</p>
+
+<h3>Boundary Following Algorithm</h3>
+<p>
+We implemented the boundary following algorithm discussed in class that starts at a pixel and uses the Moore method to traverse and color the boundary. The entry point was stored in the ConnectedComponent struct saving image traversal time. We had a helper function that helped determine the direction of travel.
+</p>
+
+<h3>Medial Axis Transform</h3>
+<p>
+For finding the skeleton of the detected components we used the medial axis transform algorithm in which we passed over the labelled image twice, once from left to right and top to bottom and the second time from right to left and bottom to top. For each pass the algorithm set the values in a destination image as follows:
+<ul>
+<li>First Pass : d(x,y) = min { p(x,y), p(x-1,y-1)+2, p(x,y-1)+1, p(x+1,y-1)+2, p(x-1,y)+1 }
+<li>Second Pass: d(x,y) = min { p(x,y), p(x+1,y)+1, p(x-1,y+1)+2, p(x,y+1)+1, p(x+1,y+1)+2 }
+</ul>
+</p>
+
+<h3>Component Moment Information</h3>
+<p>
+  Finding the properties of the components was fairly simple since they had mathematical formulae associated with them that were easy to implement. After finding the centroid and the orientation we drew the centroid and the axis of least inertia on the destination image.
+</p>
+
+<h3>Dataset 1: Finding Hands on the Piano</h3>
+<p>
+For this part we tested quite a few different methods but finally we concluded that the problem was quite tough and so instead of detecting her palms, we thought we might assuming that we would detect the general region in which her hands were. We began by resizing all the images to 1/4 the actual size and computing the background by taking an average of all the frames, converting it to grayscale and applying a Gaussian blur with a kernel of size 7x7. Then, for each frame we converted the frame to grayscale, blurred it with the same filter and performed absolute subtraction against the background. We then applied adaptive thresholding on the difference image with a ksize of 11x11 and a constant of -3. We then found the contours and highlighted the 2 largest contours. In most of the frames we are able to identify the general position of the artists hands.
+</p>
+
+<h3>Dataset 2: Counting Bats</h3>
+<p>
+In detecting the bats which have their wings open. The steps which we took are:
+<li>We first converted the image to grayscale image. 
+<li>Using adaptive threshold for thresholding we were able to separate the bats. 
+<li>Erosion and dilation is used to remove noise and join the bats which were separated due to thresholding. 
+<li>Contours were found and every contour is bounded by a rectangular box. 
+<li>The rectangles which had area smaller than a certain value were dropped
+</p>
+
+<h3>Dataset 3: Counting People</h3>
+<p>
+Each image is first preprocessed by smoothening using openCV's Gaussian blur, and then the mean difference image is subtracted from it to get a difference image. The resulting image is then divided into 4 regions based on the general <br>
+location of where the people in the image/video were found most often. Binary thresholding over the 4 separate regions of the image was then applied, followed by dilation and erosion, in various combinations,based on the requirement of each region.<br>
+The 4 regions are then appended to create a single binary image which is passed to OpenCV's findCentroid function that scan the image and provides the centroids (labels the binary objects). The centroid regions are then plotted using rectangles.   <br>
+This method worked well for some images, but not so much for others, specifically when the people in the image formed groups, standing in front of each other, in which case they were counted as 1 person. <br>
+Another weakness of the method is that a woman with a lighter jacket is not detected until she reaches the third image region (from right to left). This could be improved with extra time to consider the detection of <br>
+high brightness levels through double thresholding in the first two regions (again, from right to left).
+</p>
+
+<hr>
+<h2>Experiments</h2>
+<p>
+Describe your experiments, including the number of tests that you
+performed, and the relevant parameter values.  </p>
+<p>
+Define your evaluation
+metrics, e.g., detection rates, accuracy, running time. </p>
+
+
+<hr>
+<h2> Results</h2>
+<p>
+List your experimental results.  Provide examples of input images and output
+images. If relevant, you may provide images showing any intermediate steps.  If
+your work involves videos, do not submit the videos but only links to them.
+</p>
+
+<p>
+<table>
+<tr><td colspan=3><center><h3>Object Shape Analysis</h3></center></td></tr>
+<tr>
+<td> Trial </td><td> Source Image </td> <td> Result Image </td> 
+</tr>
+<tr>
+  <td> Image 1 </td> 
+  <td> <img src="open-bw-full.png"> </td> 
+  <td> <img src="output1.png"> </td>
+</tr> 
+<tr>
+  <td> Image 2 </td> 
+  <td> <img src="open-bw-partial.png"> </td> 
+  <td> <img src="output2.png"> </td>
+</tr> 
+<tr>
+  <td> Image 3 </td> 
+  <td> <img src="open_fist-bw.png"> </td> 
+  <td> <img src="output3.png"> </td>
+</tr> 
+<tr>
+  <td> Image 3 </td> 
+  <td> <img src="tumor-fold.png"> </td> 
+  <td> <img src="output4.png"> </td>
+</tr> 
+<tr>
+  <td> Image 1 Skeleton </td> 
+  <td> <img src="open-bw-full.png"> </td> 
+  <td> <img src="skeleton.png"> </td>
+</tr> 
+<tr>
+  <td> Image 1 Centroid and Orientation </td> 
+  <td> <img src="open-bw-full.png"> </td> 
+  <td> <img src="output1_more.png"> </td>
+</tr> 
+<td> Dataset 3 - Piano Lady</td>
+<td> <img src="dataaset1.jpg"> </td> 
+<td> <img src=""> </td>
+<tr>
+<td> Dataset 2 - Bats </td>
+<td> <img src="dataset2.jpg"> </td> 
+<td> <img src=""> </td>
+</tr> 
+<tr>
+<td> Dataset 3 - Pedestrian Detection </td>
+<td> <img src="dataset3.png"> </td> 
+<td> <img src=""> </td>
+</tr>
+</table>
+</p>
+
+
+
+<hr>
+<h2> Discussion </h2>
+
+<p> 
+Discuss your method and results:
+<ol>
+<li>Segmentation Algorithms Used:
+<ul>
+<li>Dataset 1: For this algorithm we used adaptive thresholding given that there was directional lighting in the images and so a shadow effect. We applied adaptive thresholding to a specific region of interest and used contour features to identify the hands.
+<li>Dataset 2: For this algorithm after converting the image to grayscale we used th OpenCV's adaptive thresholding, erosion, dilation functions. Furthermore, we used the contour function to find the contours which were then enclosed in a bounding box using the Rect function.
+<li>Dataset 3: Each image is first preprocessed by smoothening using openCV's Gaussian blur, and then the mean difference image is subtracted from it to get a difference image. The resulting image is then divided into 4 regions based on the general <br>
+location of where the people in the image/video were found most often. Binary thresholding over the 4 separate regions of the image was then applied, followed by dilation and erosion, in various combinations,based on the requirement of each region.<br>
+The 4 regions are then appended to create a single binary image which is passed to OpenCV's findCentroid function that scan the image and provides the centroids (labels the binary objects). The centroid regions are then plotted using rectangles.   <br>
+This method worked well for some images, but not so much for others, specifically when the people in the image formed groups, standing in front of each other, in which case they were counted as 1 person. <br>
+Another weakness of the method is that a woman with a lighter jacket is not detected until she reaches the third image region (from right to left). This could be improved with extra time to consider the detection of <br>
+high brightness levels through double thresholding in the first two regions (again, from right to left).
+
+</ul>
+<li> We implemented the Stack-Based connected component algorithm. The implementation was quite simple once you understood the concept of how the algorithm worked. Initially we were trying the recrusive algorithm but as the assignment mentioned, we were getting stack overflow errors.
+<li> After applying segmentation techniques we had experiment with various morphological operations such as dilation and erosion to come with the perfect balance that worked for us. We even used a Guassian blur when performing background subtraction to get a smoother difference image.
+<li> For each data set that you worked with, discuss some properties of the image regions that you found (e.g. area, orientation, circularity) and what they reveal about the actual objects depicted in the images (for example, fist versus open hand). The description of each data set gives some suggestions.
+<li> Some task are quite challenging to do given the lighting conditions. You need to use various methods together in order to get the best result and also need to make quite a few assumptions.
+</ol>
+
+<ul>
+<hr>
+<h2> Credits </h2>
+http://docs.opencv.org/2.4/modules/refman.html
+</div>
+</body>
+
+
+
+</html>

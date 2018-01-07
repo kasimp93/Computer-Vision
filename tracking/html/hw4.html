@@ -1,0 +1,357 @@
+
+<html>
+<head>
+<title> CS585 Homework Template: HW4 Muhammad Kasim Patel  </title>
+<style>
+<!--
+body{
+font-family: 'Trebuchet MS', Verdana;
+}
+p{
+font-family: 'Trebuchet MS', Times;
+margin: 10px 10px 15px 20px;
+}
+h3{
+margin: 5px;
+}
+h2{
+margin: 10px;
+}
+h1{
+margin: 10px 0px 0px 20px;
+}
+div.main-body{
+align:center;
+margin: 30px;
+}
+hr{
+margin:20px 0px 20px 0px;
+}
+-->
+</style>
+</head>
+
+<body>
+<center>
+<a href="http://www.bu.edu"><img border="0" src="http://www.cs.bu.edu/fac/betke/images/bu-logo.gif"
+width="119" height="120"></a>
+</center>
+
+<h1>Programming Assignment 4</h1>
+<p> 
+ CS 585 HW 4 Muhammed Kasim Patel  <br>
+ <br>
+ Shantanu Bobhate (Teammate) <br>
+ Muhammed Zuhayr Raghib (Teammate) <br>
+ 1st November, 2017
+</p>
+
+<div class="main-body">
+<hr>
+<h2> Problem Definition </h2>
+<p>
+The goal of this assignment was to learn more about the practical issues that arise when designing a tracking system. The given task was to track animals, namely bats and fish, in video sequences, i.e., identify the same animal from frame to frame. This ability is very important in the field of computer vision since it gives the system a sense of memory and the ability to not only find objects in a given frame but also identify the individuality of a each object and know that it is the same object across frames.
+</p>
+<p>
+For this assignment, we chose to start-off by implementing the simpler model for tracking the bats in the video. We used the Alpha-Beta Filter, that assumes constant angular velocity undisturbed by noise, to make predictions of the future state of each bat. Using a greedy, sub-optimal method to choose the true state in a region defined by the GATE_SIZE, we then update our state using the pre-defined hyperparameters, APLHA, BETA and DELTA_T.
+</p>
+<p>
+One of the anticipated difficulties is the choosing the optimal values for the hyperparameters. Since the video contains bats at various distances from the camera, they have different velocities. The bats closer move faster between frames, while bats further away from the camera move slower.
+</p>
+
+<hr>
+<h2> Method and Implementation </h2>
+<p>
+Since we were given information of the segmentation and localization, we first read the data for the localization into a nested vector of the dimension (number of frames x number of points in each frame). To store each point we created a custom struct called 'Vertex', that allowed us to create association between points across frames. The struct we defined is as follows:
+</p>
+<pre><code class="c++">
+    struct Vertex {
+        struct Vertex *parent = NULL;
+        Point position;
+        Point estimate;
+        Point truth;
+        Point velocity;
+        Scalar color;
+    };
+</code></pre><br>
+<p>
+The Points save information about the current position, the next estimated position and the true estimate position (found by greedy method). This allows us to later plot these for frame and evaluate the performance. The 'parent' pointer allows us to determine where we came from and create an association between points acorss frames. It also allows us to pass along information such as velocity and track color.
+
+We also use a structure called 'memory' that is a grid of size (# ROWS x # COLS). This is a pigeon hole sort of structure that allows a Vertex in the current frame to store itself for its successor in the next frame. It serves as a storage unit in between frames.
+
+Here is a brief description of the algorithm once the data has been read:
+
+<li>For the aquarium dataset we used the segmented images of the fishes and did some preprocessing in order to get the contours. Once the contours were found they were used as the measurements.
+
+</li>
+<ol>
+    <li>
+        We iterate through the points for each frame and use an alpha-beta filter to predict the next position for each of these points given the current position and some initial velocity. The equations used are given below:
+        <pre><code>
+            xk estimate = xk previous + (DELTA_T * vk_x previous);
+            yk estimate = yk previous + (DELTA_T * vk_y previous);
+            vk_x estimate = vk_x previous;
+            vk_y estimate = vk_y previous;
+        </code></pre>
+    </li><br>
+	
+	
+    <li>
+        We then look for the point (in the next frame) closest to the estimated point (using Euclidean distance). We then use the 'residue' and our hyperparameters to update the state for each bat motion model.
+        <pre><code>
+            distance = sqrt(pow(abs(a.x - b.x), 2) + pow(abs(a.y - b.y), 2));
+
+            xk += (ALPHA * rk_x);
+            yk += (ALPHA * rk_y);
+            vk_x += (BETA * rk_x) / DELTA_T;
+            vk_y += (BETA * rk_y) / DELTA_T;
+        </code></pre>
+    </li><br>
+    <li>
+        Every Vertex stores itself in the memory structure for the next point. The location is indexed using the x and y coordinates of the next point. This structure allows storing and lookups in O(1) constant time, increasing the efficiency of the algorithm and avoids the implementation of complicate search methods.
+    </li>
+</ol>
+</p>
+
+<p>
+The hyper parameters for bats we used were:
+<ul>
+    <li>DELTA_T   = 0.1</li>
+    <li>ALPHA     = 0.85</li>
+    <li>BETA      = 0.05</li>
+    <li>GATE_SIZE = 50</li>
+</ul>
+</p>
+
+<p>
+The hyper parameters for fishes we used were:
+<ul>
+    <li>DELTA_T   = 0.4</li>
+    <li>ALPHA     = 0.85</li>
+    <li>BETA      = 0.05</li>
+    <li>GATE_SIZE = 75</li>
+</ul>
+</p>
+
+<p>
+Given below are brief descriptions for the functions used:
+</p>
+
+<pre><code>
+    /*
+     * Function: InitializeVelocityMemory
+     * --------------------
+     *  initializes the 2D array where each Point whose coordinates are assigned the value of V_INIT
+     *
+     *  parameters: N/A
+     *
+     *  returns: N/A
+     */
+    void InitializeVelocityMemory();
+    
+    /*
+     * Function: ReadData
+     * --------------------
+     *  reads the localization data of the bats from a text file and stores it in a nested structure
+     *
+     *  parameters:
+     *      - measurements -> a nested structure that stores the centroids
+     *                        for each bat for every frame in the dataset.
+     *
+     *  returns: N/A
+     */
+	 
+	     /*
+     * Function: runfish
+     * --------------------
+     *  reads the localization data of the bats from a text file and stores it in a nested structure
+     *
+     *  parameters: N/A
+     *
+     *  returns: cent(centroid)
+     */
+	 
+    void ReadData(vector <vector <Vertex *>>& measurements);
+        
+    /*
+     * Function: AlphaBetaFilter
+     * --------------------
+     *  uses an alpha-beta filter to predict the position in the next frame of a datapoint in the current frame
+     *
+     *  parameters:
+     *      - measurements -> a nested structure that stores the centroids
+     *                        for each bat for every frame in the dataset.
+     *
+     *  returns: N/A
+     */
+    void AlphaBetaFilter(vector <vector <Vertex *>>& measurements);
+            
+    /*
+     * Function: FindClosestPoint
+     * --------------------
+     *  finds the point closest to the given point in the given region of interest
+     *
+     *  parameters:
+     *      - points -> a structure that holds the points available in the given area
+     *
+     *  returns: closest point
+     */
+    Point FindClosestPoint(vector<Point> points, Point point);
+        
+    /*
+     * Function: EuclideanDistance
+     * --------------------
+     *  finds the euclidean distance between 2 points
+     *
+     *  parameters:
+     *      - a -> the point in the first frame
+     *      - b -> the point in the second frame
+     *
+     *  returns: the euclidean distance between the 2 points a and b
+     */
+    double EuclideanDistance(Point a, Point b);
+</code></pre>
+
+<hr>
+<h2>Experiments</h2>
+<p>
+Describe your experiments, including the number of tests that you
+performed, and the relevant parameter values.  </p>
+<p>
+Define your evaluation
+metrics, e.g., detection rates, accuracy, running time. </p>
+
+
+<hr>
+<h2> Results</h2>
+
+<p>
+The images below show our tracking algorithm successfully correcting its predictions over frames.
+</p>
+
+<p>
+<table>
+<tr><td colspan=6><center><h3>Portion Where Method Works</h3></center></td></tr>
+<tr>
+<td> Frame a </td><td> Frame b </td>
+</tr>
+</tr>
+<tr>
+  <td> <img src="detection1/frame1.jpg"> </td>
+  <td> <img src="detection1/frame2.jpg"> </td>
+</tr>
+<tr>
+    <td> Frame c </td><td> Frame d </td>
+</tr>
+<tr>
+  <td> <img src="detection1/frame3.jpg"> </td>
+  <td> <img src="detection1/frame4.jpg"> </td>
+</tr>
+<tr>
+    <td> Frame e </td> <td> Frame f </td>
+</tr>
+<tr>
+  <td> <img src="detection1/frame5.jpg"> </td>
+  <td> <img src="detection1/frame6.jpg"> </td>
+</tr>
+</table>
+
+    <td> Fishes </td>
+</tr>
+<tr>
+  <td> <img src="aquarium/fish1.jpg"> </td>
+</tr>
+</p>
+
+    <td> Fishes </td>
+</tr>
+<tr>
+  <td> <img src="aquarium/fish.gif"> </td>
+</tr>
+</p>
+<p>
+The above images show that our algorithm works well in tracking some of the points. However it fails to work in some cases.
+</p>
+
+<p>
+The images below show a scenario where our tracking algorithm fails.
+</p>
+
+<p>
+<table>
+    <tr><td colspan=6><center><h3>Portion Where Method Fails</h3></center></td></tr>
+    <tr>
+        <td> Frame a </td><td> Frame b </td>
+    </tr>
+    </tr>
+    <tr>
+        <td> <img src="detection2/frame1.jpg"> </td>
+        <td> <img src="detection2/frame2.jpg"> </td>
+    </tr>
+    <tr>
+        <td> Frame c </td><td> Frame d </td>
+    </tr>
+    <tr>
+        <td> <img src="detection2/frame3.jpg"> </td>
+        <td> <img src="detection2/frame4.jpg"> </td>
+    </tr>
+</table>
+</p>
+
+<hr>
+<h2> Discussion </h2>
+
+<p> 
+Discuss your method and results:
+<ul>
+<li>What are the strengths and weaknesses of your method? </li>
+<p>
+The alpha-beta filter, although less robust, provides pretty good estimates for the states and performs acceptable tracking for the bats in the video. The advantage  ofcourse is the much simpler implementation. However, the Kalman filter might provide slightly better estimates since it takes into consideration the uncertainty in the system.
+</p>
+<li>Do your results show that your method is generally successful or
+     are there limitations? Describe what you expected to find in your
+     experiments, and how that differed or was confirmed by your
+     results. </li>
+<li>Potential future work. How could your method be improved?   What
+would you try (if you had more time) to overcome the
+failures/limitations of your work?</li>
+<p>
+Improvements to our method would include combining Multiple Hypothesis Tracking with a more advanced filter such as the Kalman filter.
+</p>
+</ul>
+</p>
+
+<hr>
+<h2> Conclusions </h2>
+
+<p>
+Based on your discussion, what are your conclusions?  What is your
+main message?
+</p>
+
+
+<hr>
+<h2> Credits and Bibliography </h2>
+<p>
+
+Cite any papers or other references you consulted while developing
+your solution.  Citations to papers should include the authors, the
+year of publication, the title of the work, and the publication
+information (e.g., book name and publisher; conference proceedings and
+location; journal name, volume and pages; technical report and
+institution).  
+
+<p>
+Material on the web should include the url and date of access.
+</p>
+
+<p>
+Credit any joint work or discussions with your classmates. 
+</p>
+<hr>
+</div>
+</body>
+
+
+
+</html>
